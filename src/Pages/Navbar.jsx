@@ -1,14 +1,27 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import logoblack from '../../public/logo-black.webp'
 import Button from '../UI/Button'
-import { Menu, X, User } from 'lucide-react' // changed from LogIn to User
+import { Menu, X, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [showNavbar, setShowNavbar] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const menuRef = useRef(null)
 
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Hide navbar on scroll
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
@@ -19,7 +32,6 @@ const Navbar = () => {
       }
       setLastScrollY(currentScrollY)
     }
-
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [lastScrollY])
@@ -38,14 +50,14 @@ const Navbar = () => {
           </a>
         </div>
 
-        {/* Hamburger Menu - Mobile Only */}
+        {/* Hamburger Menu */}
         <div className="md:hidden">
           <button onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         </div>
 
-        {/* Menu */}
+        {/* Desktop Menu */}
         <nav className="hidden md:flex space-x-8 text-gray-800 font-medium">
           <Link to="/" className="hover:text-blue-600">
             Home
@@ -76,7 +88,6 @@ const Navbar = () => {
             title="Download App"
             onClick={() => alert('Download clicked')}
           />
-          {/* User Icon for Registration */}
           <Link
             to="/registration"
             className="flex items-center justify-center bg-blue-950 text-white p-2 rounded-md hover:bg-blue-800 transition-all"
@@ -86,48 +97,66 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Sidebar - Mobile Only */}
+      {/* Mobile Sidebar */}
       {menuOpen && (
-        <div className="md:hidden bg-white absolute top-full left-0 w-full shadow-md py-4 px-6 space-y-4 z-40">
-          <Link to="/" className="block text-gray-800 hover:text-blue-600">
+        <div
+          ref={menuRef}
+          className="md:hidden bg-white absolute top-full left-0 w-full shadow-md py-4 px-6 space-y-4 z-40"
+        >
+          <Link
+            to="/"
+            onClick={() => setMenuOpen(false)}
+            className="block text-gray-800 hover:text-blue-600"
+          >
             Home
           </Link>
           <Link
             to="/services"
+            onClick={() => setMenuOpen(false)}
             className="block text-gray-800 hover:text-blue-600"
           >
             Services
           </Link>
           <Link
             to="/how-it-works"
+            onClick={() => setMenuOpen(false)}
             className="block text-gray-800 hover:text-blue-600"
           >
             How It Works
           </Link>
-          <Link to="/about" className="block text-gray-800 hover:text-blue-600">
+          <Link
+            to="/about"
+            onClick={() => setMenuOpen(false)}
+            className="block text-gray-800 hover:text-blue-600"
+          >
             About
           </Link>
           <Link
             to="/contact"
+            onClick={() => setMenuOpen(false)}
             className="block text-gray-800 hover:text-blue-600"
           >
             Contact
           </Link>
-          <div className="pt-2 border-t space-y-2">
+
+          <div className="pt-2 border-t space-y-1">
             <p className="text-gray-500 text-sm">Need Help?</p>
-            <h5 className="text-blue-600 font-semibold mb-2">
+            <h5 className="text-blue-600 font-semibold mb-2 text-sm sm:text-base">
               +91 98765 43210
             </h5>
-            <Button
-              title="Download App"
-              onClick={() => alert('Download clicked')}
-            />
-            <Link
-              to="/registration"
-              className="inline-flex items-center justify-center bg-blue-950 text-white p-2 rounded-md hover:bg-blue-800 transition-all"
-            >
-              <User size={18} />
-            </Link>
+            <div className="flex items-center -ms-2 pt-2">
+              <Button
+                title="Download App"
+                onClick={() => alert('Download clicked')}
+              />
+              <Link
+                to="/registration"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex items-center justify-center bg-blue-950 text-white p-2 rounded-md hover:bg-blue-800 transition-all ms-10"
+              >
+                <User size={18} /> Login
+              </Link>
+            </div>
           </div>
         </div>
       )}
