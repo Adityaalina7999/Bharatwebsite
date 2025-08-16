@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import { LoadScript, Autocomplete } from '@react-google-maps/api'
 import useRegistration from './RegistrationContext/useRegistration'
 import { FaArrowLeft, FaMapMarkerAlt } from 'react-icons/fa'
+import axios from '../Api/axiosInstance'
 
 const libraries = ['places']
 
@@ -15,7 +16,9 @@ const AddressWork = ({ onNext, onBack }) => {
     state: formData.address?.state || '',
     city: formData.address?.city || '',
     pincode: formData.address?.pincode || '',
-    distance: formData.address?.distance || 40,
+    serviceAreaDistance: formData.address?.distance || 40,
+    latitude: formData.address?.latitude || null,
+    longitude: formData.address?.longitude || null,
   })
 
   const handleChange = (e) => {
@@ -29,13 +32,36 @@ const AddressWork = ({ onNext, onBack }) => {
   const handleDistanceChange = (e) => {
     setAddressInfo((prev) => ({
       ...prev,
-      distance: parseInt(e.target.value, 10),
+      serviceAreaDistance: parseInt(e.target.value, 10),
     }))
   }
 
-  const handleNext = () => {
-    updateFormData({ address: addressInfo })
-    onNext()
+  const handleNext = async () => {
+    try {
+      // Save in context
+      updateFormData({ address: addressInfo })
+
+      // Send to backend
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/webpartner/workLocationUpdate`,
+        addressInfo,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      )
+
+      console.log('Work location updated:', res.data)
+      if (res.data.success) {
+        onNext()
+      } else {
+        alert(res.data.message || 'Failed to update work location')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error updating work location')
+    }
   }
 
   const onLoad = (autocompleteInstance) => {
@@ -43,11 +69,42 @@ const AddressWork = ({ onNext, onBack }) => {
   }
 
   const onPlaceChanged = () => {
-    if (autocomplete !== null) {
+    if (autocomplete) {
       const place = autocomplete.getPlace()
+      const lat = place.geometry?.location?.lat()
+      const lng = place.geometry?.location?.lng()
+
+      // Extract city, state, pincode from address_components
+      let city = ''
+      let state = ''
+      let country = ''
+      let pincode = ''
+
+      place.address_components?.forEach((component) => {
+        const types = component.types
+        if (types.includes('locality')) {
+          city = component.long_name
+        }
+        if (types.includes('administrative_area_level_1')) {
+          state = component.long_name
+        }
+        if (types.includes('country')) {
+          country = component.long_name
+        }
+        if (types.includes('postal_code')) {
+          pincode = component.long_name
+        }
+      })
+
       setAddressInfo((prev) => ({
         ...prev,
         address: place.formatted_address || '',
+        latitude: lat || null,
+        longitude: lng || null,
+        city: city || prev.city,
+        state: state || prev.state,
+        country: country || prev.country,
+        pincode: pincode || prev.pincode,
       }))
     }
   }
@@ -102,7 +159,7 @@ const AddressWork = ({ onNext, onBack }) => {
             <label
               htmlFor="country"
               className="block text-sm font-medium text-gray-700 mb-1"
-            >
+            > 
               Country
             </label>
             <input
@@ -115,27 +172,16 @@ const AddressWork = ({ onNext, onBack }) => {
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100"
             />
           </div>
-          <div className="w-1/2">
-            <label
-              htmlFor="state"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              State
-            </label>
-            <select
-              id="state"
-              name="state"
-              value={addressInfo.state}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="">Select state</option>
-              <option value="Maharashtra">Maharashtra</option>
-              <option value="Karnataka">Karnataka</option>
-              <option value="Delhi">Delhi</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-            </select>
-          </div>
+          <select
+            id="state"
+            name="state"
+            value={addressInfo.state}
+            onChange={handleChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+          >
+            <option value="">Select state</option>
+            <option value={addressInfo.state}>{addressInfo.state}</option>
+          </select>
         </div>
 
         {/* City + Pincode */}
@@ -191,7 +237,7 @@ const AddressWork = ({ onNext, onBack }) => {
             className="w-full accent-blue-700"
           />
           <div className="text-right text-sm text-gray-600 mt-1">
-            {addressInfo.distance} km
+            {addressInfo.serviceAreaDistance} km
           </div>
         </div>
 

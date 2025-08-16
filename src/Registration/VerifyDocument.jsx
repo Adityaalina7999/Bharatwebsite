@@ -1,171 +1,179 @@
 import React, { useState } from 'react'
 import useRegistration from './RegistrationContext/useRegistration'
 import { FaArrowLeft } from 'react-icons/fa'
+import axios from '../Api/axiosInstance'
 
 const VerifyDocument = ({ onNext, onBack }) => {
-  const { formData, updateFormData } = useRegistration()
+  const { formData } = useRegistration()
 
   const [idType, setIdType] = useState(
     formData.documents?.idType || 'Aadhar Card'
   )
   const [idNumber, setIdNumber] = useState(formData.documents?.idNumber || '')
-  const [frontImage, setFrontImage] = useState(
-    formData.documents?.frontImage || null
-  )
-  const [backImage, setBackImage] = useState(
-    formData.documents?.backImage || null
-  )
-  const [certificateImage, setCertificateImage] = useState(
-    formData.documents?.certificateImage || null
-  )
+  const [frontFile, setFrontFile] = useState(null)
+  const [backFile, setBackFile] = useState(null)
+  const [certificateFile, setCertificateFile] = useState(null)
 
-  const handleImageChange = (e, setter) => {
-    const file = e.target.files[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setter(reader.result)
+  const handleFileChange = (e, setter) => {
+    if (e.target.files[0]) setter(e.target.files[0])
+  }
+
+  const removeFile = (setter) => setter(null)
+
+  const handleSubmit = async () => {
+    try {
+      // Validation
+      if (idType === 'Aadhar Card') {
+        const aadharRegex = /^[0-9]{12}$/
+        if (!aadharRegex.test(idNumber)) {
+          alert('Please enter a valid 12-digit Aadhar number.')
+          return
+        }
       }
-      reader.readAsDataURL(file)
+
+      if (idType === 'PAN Card') {
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
+        if (!panRegex.test(idNumber)) {
+          alert('Please enter a valid PAN number (e.g., ABCDE1234F).')
+          return
+        }
+      }
+
+      const formDataObj = new FormData()
+
+      if (idType === 'Aadhar Card') {
+        formDataObj.append('aadharNo', idNumber)
+        formDataObj.append('isAadharCard', 'true')
+        if (frontFile) formDataObj.append('aadharFront', frontFile)
+        if (backFile) formDataObj.append('aadharBack', backFile)
+      }
+      if (idType === 'PAN Card') {
+        formDataObj.append('panNo', idNumber)
+        formDataObj.append('isPanCard', 'true')
+        if (frontFile) formDataObj.append('panFront', frontFile)
+        if (backFile) formDataObj.append('panBack', backFile)
+      }
+      if (certificateFile) {
+        formDataObj.append('experienceCertificates', certificateFile)
+      }
+
+      const res = await axios.post(
+        `${
+          import.meta.env.VITE_API_BASE_URL
+        }/webpartner/uploadPartnerDocuments`,
+        formDataObj,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      if (res.data.success) onNext()
+      else alert(res.data.message)
+    } catch (err) {
+      console.error(err)
+      alert('Error uploading documents')
     }
   }
 
-  const handleNext = () => {
-    updateFormData({
-      documents: {
-        idType,
-        idNumber,
-        frontImage,
-        backImage,
-        certificateImage,
-      },
-    })
-    onNext()
-  }
+  const UploadBox = ({ file, setFile, label }) => (
+    <div className="mb-5">
+      <label className="block text-sm font-medium mb-2">{label}</label>
+      {file ? (
+        <div className="border-2 border-dashed border-blue-400 rounded-lg h-20 flex items-center justify-between px-3">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gray-200 flex items-center justify-center rounded">
+              <img
+                src={URL.createObjectURL(file)}
+                alt="preview"
+                className="max-h-full max-w-full rounded"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="text-red-500 text-sm"
+            onClick={() => removeFile(setFile)}
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <label className="border-2 border-dashed border-blue-400 rounded-lg h-20 flex items-center justify-center text-gray-400 text-xs cursor-pointer">
+          upload ID Image
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFileChange(e, setFile)}
+          />
+        </label>
+      )}
+    </div>
+  )
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md min-h-screen">
-      {/* Back and Skip */}
-      <div className="flex justify-between items-center mb-4">
-        <button onClick={onBack} className="text-sm text-gray-600">
-          <FaArrowLeft className="mr-2" />
+    <div className="max-w-sm mx-auto p-5 min-h-screen bg-white">
+      {/* Top bar */}
+      <div className="flex justify-between items-center mb-5">
+        <button onClick={onBack} className="flex items-center text-gray-600">
+          <FaArrowLeft className="mr-1" size={16} />
         </button>
-        <button className="text-sm text-blue-700">Skip</button>
+        <button className="text-sm text-gray-500" onClick={onNext}>
+          Skip
+        </button>
       </div>
 
       {/* Title */}
-      <h2 className="text-xl font-bold text-gray-900 mb-1">
-        Verify Your Identity
-      </h2>
-      <p className="text-sm text-gray-500 mb-4">
+      <h2 className="text-xl font-semibold">Verify Your Identity</h2>
+      <p className="text-sm text-gray-500 mb-6">
         Upload your ID and certificates to get verified faster.
       </p>
 
-      {/* Select Government ID */}
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      {/* Select ID */}
+      <label className="block text-sm font-medium mb-2">
         Select Government ID
       </label>
       <select
-        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5"
         value={idType}
         onChange={(e) => setIdType(e.target.value)}
       >
         <option value="Aadhar Card">Aadhar Card</option>
         <option value="PAN Card">PAN Card</option>
-        <option value="Voter ID">Voter ID</option>
-        <option value="Driving License">Driving License</option>
       </select>
 
-      {/* Enter ID Number */}
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Enter ID No.
-      </label>
+      {/* ID No */}
+      <label className="block text-sm font-medium mb-2">Enter ID No.</label>
       <input
         type="text"
-        placeholder="Enter ID Number"
-        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-4"
+        placeholder={
+          idType === 'Aadhar Card'
+            ? 'Enter 12-digit Aadhar'
+            : 'Enter PAN (ABCDE1234F)'
+        }
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-5 uppercase"
         value={idNumber}
-        onChange={(e) => setIdNumber(e.target.value)}
+        onChange={(e) =>
+          setIdNumber(e.target.value.toUpperCase().replace(/\s/g, ''))
+        }
       />
 
-      {/* Upload Front Side */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Front Side
-        </label>
-        {frontImage ? (
-          <div className="relative border-2 border-dashed border-blue-400 rounded-md p-2">
-            <img src={frontImage} alt="Front" className="w-full rounded-md" />
-            <button
-              className="absolute top-1 right-2 text-red-600 text-sm"
-              onClick={() => setFrontImage(null)}
-            >
-              Remove
-            </button>
-          </div>
-        ) : (
-          <label className="border-2 border-dashed border-blue-400 rounded-md px-3 py-6 text-center text-sm text-gray-400 cursor-pointer block">
-            Upload ID Image
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImageChange(e, setFrontImage)}
-            />
-          </label>
-        )}
-      </div>
+      {/* File Uploads */}
+      <UploadBox file={frontFile} setFile={setFrontFile} label="Front Side" />
+      <UploadBox file={backFile} setFile={setBackFile} label="Back Side" />
+      <UploadBox
+        file={certificateFile}
+        setFile={setCertificateFile}
+        label="Work License or Certificates"
+      />
 
-      {/* Upload Back Side */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Back Side
-        </label>
-        <label className="border-2 border-dashed border-blue-400 rounded-md px-3 py-6 text-center text-sm text-gray-400 cursor-pointer block">
-          {backImage ? (
-            <img src={backImage} alt="Back" className="w-full rounded-md" />
-          ) : (
-            'Upload ID Image'
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleImageChange(e, setBackImage)}
-          />
-        </label>
-      </div>
-
-      {/* Upload Work License or Certificate */}
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Work License or Certificates
-        </label>
-        <label className="border-2 border-dashed border-blue-400 rounded-md px-3 py-6 text-center text-sm text-gray-400 cursor-pointer block">
-          {certificateImage ? (
-            <img
-              src={certificateImage}
-              alt="Certificate"
-              className="w-full rounded-md"
-            />
-          ) : (
-            'Upload ID Image'
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => handleImageChange(e, setCertificateImage)}
-          />
-        </label>
-      </div>
-      <p className="text-sm text-gray-400 mb-4 text-center">
-        Documents will be review by the admin with in 24 hours.
-      </p>
-      {/* Save & Continue */}
+      {/* Submit */}
       <button
-        onClick={handleNext}
-        className="w-full bg-blue-800 text-white py-2 rounded-full text-sm font-medium hover:bg-blue-900 transition"
+        onClick={handleSubmit}
+        className="mt-8 w-full bg-[#003366] text-white py-3 rounded-full text-sm font-medium"
       >
         Save & Continue
       </button>

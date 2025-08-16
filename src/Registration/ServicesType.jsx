@@ -1,43 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import axios from '../Api/axiosInstance'
 import useRegistration from './RegistrationContext/useRegistration'
+import { FaArrowLeft } from 'react-icons/fa'
 
-// Service icons
-import AC from '../../public/Registration/AC.svg'
-import Beauty from '../../public/Registration/Beauty.svg'
-import Appliance from '../../public/Registration/Appliance.svg'
-import Painter from '../../public/Registration/painter.svg'
-import Cleaning from '../../public/Registration/cleaning.svg'
-import Plumber from '../../public/Registration/Plimber.svg'
-import Electrician from '../../public/Registration/Electricion.svg'
-import Shifting from '../../public/Registration/Shifting.svg'
-import Men from '../../public/Registration/Men.svg'
-
-// Map service names to icons
-const serviceIcons = {
-  'AC Repair': AC,
-  Beauty,
-  Appliance,
-  Painter,
-  Cleaning,
-  Plumber,
-  Electrician,
-  Shifting,
-  "Men's Salon": Men,
-}
-
-const ServicesType = ({ onNext }) => {
+const ServicesType = ({ onNext, onBack }) => {
   const { formData, updateFormData } = useRegistration()
-  useEffect(() => {
-    console.log('Updated form data:', formData)
-  }, [formData])
-  console.log('Updated form data services:', formData)
-  const selectedServices = formData.services || []
+  console.log('servicesTypeee formData', formData)
 
+  const selectedServices = formData.data?.partner?.category || []
   const [categoryTypes, setCategoryTypes] = useState([]) // [{ _id, name }]
-  const [subCategories, setSubCategories] = useState({}) // { service: { categoryTypeId: [subcat objects] } }
+  const [subCategories, setSubCategories] = useState({})
   const [selectedSubTypes, setSelectedSubTypes] = useState(
-    formData.serviceTypes || {}
+    formData.categorytype || []
   )
 
   // Fetch category types
@@ -51,89 +25,163 @@ const ServicesType = ({ onNext }) => {
       .catch(console.error)
   }, [])
 
-  // Fetch subcategories by service + categoryType
+  // Fetch subcategories
   useEffect(() => {
-    const fetchAllSubCategories = async () => {
-      const result = {}
+    const fetchSubCategories = async () => {
+      try {
+        const res = await axios.post('/sub-categories/getSubCategories', {
+          currentPage: 1,
+          pageSize: 200,
+        })
+        const allSubcats = res.data?.data?.subCategories || []
 
-      for (const service of selectedServices) {
-        result[service._id] = {}
+        const grouped = {}
+        selectedServices.forEach((service) => {
+          const serviceSubs = allSubcats.filter(
+            (sc) => sc.category?._id === service._id
+          )
 
-        for (const category of categoryTypes) {
-          try {
-            const res = await axios.get(
-              '/sub-categories/getSubCategoryByTypeAndCategoryId',
-              {
-                params: {
-                  categoryId: service._id,
-                  type: category._id,
-                },
-              }
-            )
+          const byType = {}
+          serviceSubs.forEach((sc) => {
+            const typeKey =
+              sc.typeOfCategory?.charAt(0).toUpperCase() +
+              sc.typeOfCategory?.slice(1)
 
-            const subcats = res.data?.data || []
-            result[service._id][category._id] = subcats
-          } catch (err) {
-            console.error(
-              'Failed fetching for',
-              service.name,
-              category.name,
-              err
-            )
-          }
-        }
+            if (!byType[typeKey]) byType[typeKey] = []
+            byType[typeKey].push({
+              ...sc,
+              categorytypeId:
+                sc.typeOfCategoryId || sc.categorytype?._id || null,
+            })
+          })
+
+          grouped[service._id] = byType
+        })
+
+        setSubCategories(grouped)
+      } catch (err) {
+        console.error('Failed fetching subcategories', err)
       }
-      setSubCategories(result)
     }
 
-    if (categoryTypes.length > 0) {
-      fetchAllSubCategories()
+    if (selectedServices.length > 0) {
+      fetchSubCategories()
     }
-  }, [selectedServices, categoryTypes])
+  }, [selectedServices])
 
-  const toggleSubType = (service, categoryTypeId, subcat) => {
+  const toggleSubType = (serviceId, typeKey, subcat) => {
     setSelectedSubTypes((prev) => {
-      const prevService = prev[service] || {}
+      const prevService = prev[serviceId] || {}
       const currentList = new Set(
-        prevService[categoryTypeId]?.map((item) => item._id) || []
+        prevService[typeKey]?.map((item) => item._id) || []
       )
 
-      const exists = currentList.has(subcat._id)
-
       let newList
-      if (exists) {
-        newList = prevService[categoryTypeId].filter(
-          (item) => item._id !== subcat._id
-        )
+      if (currentList.has(subcat._id)) {
+        newList = prevService[typeKey].filter((item) => item._id !== subcat._id)
       } else {
-        newList = [...(prevService[categoryTypeId] || []), subcat]
+        newList = [...(prevService[typeKey] || []), subcat]
       }
 
       return {
         ...prev,
-        [service]: {
+        [serviceId]: {
           ...prevService,
-          [categoryTypeId]: newList,
+          [typeKey]: newList,
         },
       }
     })
   }
 
-  const handleNext = () => {
-    updateFormData({ serviceTypes: selectedSubTypes })
-    onNext()
-  }
-
-  const isSelected = (service, categoryTypeId, subcatId) => {
-    return selectedSubTypes?.[service]?.[categoryTypeId]?.some(
+  const isSelected = (serviceId, typeKey, subcatId) => {
+    return selectedSubTypes?.[serviceId]?.[typeKey]?.some(
       (item) => item._id === subcatId
     )
   }
 
-  return (
-    <div className="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md min-h-screen">
-      <button className="text-gray-600 mb-4 text-left">{'<'} Back</button>
+  const handleNext = async () => {
+    try {
+      const servicesPayload = []
+      const categoryTypePayload = []
 
+      Object.entries(selectedSubTypes).forEach(([serviceId, typesObj]) => {
+        Object.entries(typesObj).forEach(([typeKey, subcats]) => {
+          // Match category type name with /category-type data
+          const matchedType = categoryTypes.find(
+            (ct) =>
+              ct.name.trim().toLowerCase() === typeKey.trim().toLowerCase()
+          )
+          const categoryTypeId = matchedType?._id || null
+
+          if (categoryTypeId && !categoryTypePayload.includes(categoryTypeId)) {
+            categoryTypePayload.push(categoryTypeId)
+          }
+
+          subcats.forEach((subcat) => {
+            servicesPayload.push({
+              _id: subcat._id,
+              name: subcat.name,
+              description: subcat.description || '',
+              category: subcat.category?._id,
+              categorytype: categoryTypeId,
+              pricingTiers: subcat.pricingTiers || [],
+              surgePricing: subcat.surgePricing || {
+                enabled: false,
+                surgeMultiplier: 1,
+                surgeHours: [],
+              },
+              partnerCommissionRate: subcat.partnerCommissionRate || 0,
+              metaTitle: subcat.metaTitle || null,
+              metaDescripton: subcat.metaDescripton || null,
+              metaKeyword: subcat.metaKeyword || null,
+              status: 'active',
+            })
+          })
+        })
+      })
+
+      const updatedData = {
+        ...formData,
+        data: {
+          partner: {
+            ...formData.data?.partner,
+            services: servicesPayload,
+            categoryType: categoryTypePayload,
+          },
+        },
+      }
+
+      console.log('Final payload being sent (ServicesType):', updatedData)
+
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/webpartner/profileUpdate`,
+        updatedData,
+        { headers: { 'Content-Type': 'application/json' } }
+      )
+
+      
+      console.log('Profile updated:', res.data)
+
+      if (res.data.success) {
+        updateFormData(updatedData)
+        onNext()
+      } else {
+        alert(res.data.message || 'Failed to save service types')
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err)
+      alert('Something went wrong while saving your service types')
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto bg-white p-6 rounded-lg min-h-screen">
+      <button
+        className="text-gray-600 mb-4 text-left flex items-center"
+        onClick={onBack}
+      >
+        <FaArrowLeft />
+      </button>
       <h2 className="text-2xl font-bold mb-1 text-gray-900">
         Select Your Service Type
       </h2>
@@ -141,7 +189,6 @@ const ServicesType = ({ onNext }) => {
         Choose the type of service you specialize in. This helps us connect you
         with the right requests.
       </p>
-
       {selectedServices.map((service) => (
         <div
           key={service._id}
@@ -149,40 +196,39 @@ const ServicesType = ({ onNext }) => {
         >
           <div className="flex items-center mb-3">
             <img
-              src={serviceIcons[service.name]}
+              src={service.image}
               alt={service.name}
               className="w-6 h-6 mr-2"
             />
             <h3 className="text-md font-semibold">{service.name}</h3>
           </div>
 
-          {categoryTypes.map((category) => (
-            <div key={category._id} className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2 capitalize">
-                {category.name}
-              </h4>
-
-              <div className="flex flex-wrap gap-2">
-                {(subCategories[service._id]?.[category._id] || []).map(
-                  (subcat) => (
+          {Object.entries(subCategories[service._id] || {}).map(
+            ([typeKey, subs]) => (
+              <div key={typeKey} className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  {typeKey}
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {subs.map((subcat) => (
                     <button
                       key={subcat._id}
                       onClick={() =>
-                        toggleSubType(service._id, category._id, subcat)
+                        toggleSubType(service._id, typeKey, subcat)
                       }
                       className={`px-3 py-1 rounded-full text-sm border ${
-                        isSelected(service._id, category._id, subcat._id)
+                        isSelected(service._id, typeKey, subcat._id)
                           ? 'bg-blue-700 text-white border-blue-700'
                           : 'bg-white text-gray-700 border-gray-300'
                       }`}
                     >
                       {subcat.name}
                     </button>
-                  )
-                )}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          )}
         </div>
       ))}
 

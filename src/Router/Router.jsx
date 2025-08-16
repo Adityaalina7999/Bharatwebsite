@@ -12,56 +12,29 @@ import OtpVerificationPage from '../Registration/OtpVerificationPage'
 import AboutYouForm from '../Registration/Registration'
 import RegistrationFlow from '../Registration/RegistrationFlow'
 import { RegistrationProvider } from '../Registration/RegistrationContext/RegistrationContext'
+import GoogleSinpuppage from '../Registration/GoogleSinpuppage'
 
 const router = createBrowserRouter([
   {
     path: '',
-    element: <App />,
+    element: (
+      <RegistrationProvider>
+        <App />
+      </RegistrationProvider>
+    ),
     children: [
-      {
-        path: '',
-        element: <Home />,
-      },
-      {
-        path: 'About',
-        element: <About />,
-      },
-      {
-        path: 'Contact',
-        element: <Contact />,
-      },
-      {
-        path: 'Services',
-        element: <Services />,
-      },
-      {
-        path: 'how-it-works',
-        element: <Howitworks />,
-      },
-      {
-        path: 'Book-repair',
-        element: <BookRepair />,
-      },
-      {
-        path: 'registration',
-        element: <RegistrationMethod />,
-      },
-      {
-        path: 'PhoneLoginPage',
-        element: <PhoneLoginPage />,
-      },
-      {
-        path: 'OtpVerificationPage',
-        element: <OtpVerificationPage />,
-      },
-      {
-        path: 'AboutYouForm',
-        element: (
-          <RegistrationProvider>
-            <RegistrationFlow />
-          </RegistrationProvider>
-        ),
-      },
+      { path: '', element: <Home /> },
+      { path: 'About', element: <About /> },
+      { path: 'Contact', element: <Contact /> },
+      { path: 'Services', element: <Services /> },
+      { path: 'how-it-works', element: <Howitworks /> },
+      { path: 'Book-repair', element: <BookRepair /> },
+      { path: 'registration', element: <RegistrationMethod /> },
+      { path: 'PhoneLoginPage', element: <PhoneLoginPage /> },
+      { path: 'GoogleSinpuppage', element: <GoogleSinpuppage /> },
+
+      { path: 'OtpVerificationPage', element: <OtpVerificationPage /> },
+      { path: 'AboutYouForm', element: <RegistrationFlow /> },
     ],
   },
 ])

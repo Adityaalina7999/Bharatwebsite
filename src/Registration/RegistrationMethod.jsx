@@ -18,10 +18,13 @@ const RegistrationMethod = () => {
 
       {/* ================ Buttons ======================*/}
       <div className="w-full max-w-xs space-y-4">
-        <button className="w-full flex items-center gap-3 px-4 py-3 border rounded-xl text-black text-sm font-medium hover:bg-gray-100 transition">
+        <Link
+          to="/GoogleSinpuppage"
+          className="w-full flex items-center gap-3 px-4 py-3 border rounded-xl text-black text-sm font-medium hover:bg-gray-100 transition"
+        >
           <FcGoogle className="text-lg" />
           Continue with Google
-        </button>
+        </Link>
 
         <button className="w-full flex items-center gap-3 px-4 py-3 border rounded-xl text-black text-sm font-medium hover:bg-gray-100 transition">
           <FaFacebookF className="text-blue-600 text-lg" />

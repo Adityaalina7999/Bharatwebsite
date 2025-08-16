@@ -2,18 +2,12 @@ import React, { useState, useEffect } from 'react'
 import PhoneInput from 'react-phone-input-2'
 import 'react-phone-input-2/lib/style.css'
 import { FiCamera, FiCalendar } from 'react-icons/fi'
-
+import axios from '../Api/axiosInstance'
 import useRegistration from './RegistrationContext/useRegistration'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const AboutYouForm = ({ onNext }) => {
-  const context = useRegistration()
-
-  console.log('Registration context:', context) // Should NOT be undefined
-  const { formData, updateFormData } = context
-  useEffect(() => {
-    console.log('Updated form data:', formData)
-  }, [formData])
-  console.log('Updated form data:', formData)
+  const { formData, updateFormData } = useRegistration()
 
   const [localData, setLocalData] = useState({
     name: '',
@@ -23,17 +17,53 @@ const AboutYouForm = ({ onNext }) => {
   })
 
   useEffect(() => {
-    // Pre-fill form if returning to this step
-    setLocalData(formData)
+    setLocalData((prev) => ({
+      ...prev,
+      ...formData,
+      email: formData.email || localStorage.getItem('emailForSignIn') || '',
+    }))
   }, [formData])
 
   const handleChange = (e) => {
     setLocalData({ ...localData, [e.target.name]: e.target.value })
   }
 
-  const handleNext = () => {
-    updateFormData(localData)
-    onNext() // move to next step
+  const handleNext = async () => {
+    try {
+      const formDataToSend = new FormData()
+
+      // If you have partner userId already (from OTP/register), append it
+      if (formData._id) {
+        formDataToSend.append('_id', formData._id)
+      }
+      // Append user details
+      formDataToSend.append('name', localData.name)
+      formDataToSend.append('email', localData.email)
+      formDataToSend.append('phone', `+${localData.phone}`)
+      // formDataToSend.append('role', 'partner')
+      formDataToSend.append('dob', new Date(localData.dob).toISOString())
+
+      // Append profile image file (if selected)
+      if (localData.profileImageFile) {
+        formDataToSend.append('profile', localData.profileImageFile)
+      }
+
+      const res = await axios.post(
+        `${API_BASE_URL}/partner/profileUpdate`,
+        formDataToSend,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      )
+      console.log('res res ', res)
+      if (res.status === 200 || res.status === 201) {
+        updateFormData(res.data)
+        onNext()
+      }
+    } catch (error) {
+      console.error('Error creating partner:', error)
+      alert('Something went wrong while saving your details.')
+    }
   }
 
   return (
@@ -47,17 +77,32 @@ const AboutYouForm = ({ onNext }) => {
 
       <div className="flex justify-center mb-4 relative">
         <img
-          src="https://via.placeholder.com/80"
+          src={
+            localData.profileImageFile
+              ? URL.createObjectURL(localData.profileImageFile)
+              : 'https://via.placeholder.com/80'
+          }
           alt="Profile"
           className="w-20 h-20 rounded-full object-cover"
         />
-        <div className="absolute bottom-0 right-[38%] bg-blue-600 p-1.5 rounded-full text-white cursor-pointer">
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          id="profileUpload"
+          onChange={(e) =>
+            setLocalData({ ...localData, profileImageFile: e.target.files[0] })
+          }
+        />
+        <label
+          htmlFor="profileUpload"
+          className="absolute bottom-0 right-[38%] bg-blue-600 p-1.5 rounded-full text-white cursor-pointer"
+        >
           <FiCamera size={16} />
-        </div>
+        </label>
       </div>
 
       <div className="space-y-4">
-        {/* Full Name */}
         <div>
           <label className="text-sm font-medium text-gray-800">Full Name</label>
           <input
@@ -70,14 +115,13 @@ const AboutYouForm = ({ onNext }) => {
           />
         </div>
 
-        {/* Date of Birth */}
         <div>
           <label className="text-sm font-medium text-gray-800">
             Date of Birth
           </label>
           <div className="relative">
             <input
-              type="text"
+              type="date"
               name="dob"
               placeholder="DD-MM-YYYY"
               value={localData.dob}
@@ -88,7 +132,6 @@ const AboutYouForm = ({ onNext }) => {
           </div>
         </div>
 
-        {/* Mobile Number with Flag */}
         <div>
           <label className="text-sm font-medium text-gray-800">
             Mobile Number
@@ -106,7 +149,6 @@ const AboutYouForm = ({ onNext }) => {
           />
         </div>
 
-        {/* Email */}
         <div>
           <label className="text-sm font-medium text-gray-800">Email</label>
           <input
@@ -119,7 +161,6 @@ const AboutYouForm = ({ onNext }) => {
           />
         </div>
 
-        {/* Next Button */}
         <button
           onClick={handleNext}
           className="mt-4 w-full bg-blue-800 text-white py-2 rounded-full text-sm font-medium hover:bg-blue-900 transition"
