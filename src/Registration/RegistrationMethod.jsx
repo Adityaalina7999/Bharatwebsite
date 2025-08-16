@@ -41,12 +41,12 @@ const RegistrationMethod = () => {
       </div>
 
       {/*===============================- Footer -============================*/}
-      <p className="mt-6 text-sm text-gray-500">
+      <Link to="/AppDownloadPage" className="mt-6 text-sm text-gray-500">
         Already have an account?{' '}
         <span className="text-blue-600 font-medium cursor-pointer hover:underline">
           Log in
         </span>
-      </p>
+      </Link>
     </div>
   )
 }

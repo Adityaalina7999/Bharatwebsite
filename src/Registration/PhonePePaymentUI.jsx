@@ -1,7 +1,11 @@
 import React, { useState } from 'react'
 import useRegistration from './RegistrationContext/useRegistration'
+import { useNavigate } from 'react-router-dom'
+
 import phonepe from '../../public/Phonepe.svg'
 export default function PhonePePaymentUI() {
+  const navigate = useNavigate()
+
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { formData } = useRegistration()
   const totalPayable = formData?.totalPayable || 0
@@ -118,7 +122,7 @@ export default function PhonePePaymentUI() {
                 application.
               </p>
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => navigate('/AppDownloadPage')}
                 className="bg-[#003366] text-white px-5 py-2 rounded-lg"
               >
                 Go to Dashboard

@@ -13,7 +13,7 @@ import AboutYouForm from '../Registration/Registration'
 import RegistrationFlow from '../Registration/RegistrationFlow'
 import { RegistrationProvider } from '../Registration/RegistrationContext/RegistrationContext'
 import GoogleSinpuppage from '../Registration/GoogleSinpuppage'
-
+import AppDownloadPage from '../Registration/AppDownloadPage'
 const router = createBrowserRouter([
   {
     path: '',
@@ -35,6 +35,7 @@ const router = createBrowserRouter([
 
       { path: 'OtpVerificationPage', element: <OtpVerificationPage /> },
       { path: 'AboutYouForm', element: <RegistrationFlow /> },
+      { path: 'AppDownloadPage', element: <AppDownloadPage /> },
     ],
   },
 ])
